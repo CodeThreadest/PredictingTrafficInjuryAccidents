@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 from sklearn.impute import SimpleImputer
@@ -6,20 +7,21 @@ from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
 import matplotlib.pyplot as plt
+
 
 # Load dataset
 df = pd.read_csv('Traffic_Crashes(1).csv')
 
-# Inspect initial dataset
-print("Initial Dataset Info:")
-print(df.info())
+os.environ["LOKY_MAX_CPU_COUNT"] = "4"
 
 # Encode target variable as binary accident indicator
 df['accident'] = df['INJURIES_TOTAL'].apply(lambda x: 1 if x > 2 else 0)
 
 # Drop irrelevant or high-missing columns
 columns_to_drop = [
+    'DAMAGE', 'REPORT_TYPE', 'DEVICE_CONDITION', 'NUM_UNITS', 'NUM_UNITS',
     'INJURIES_TOTAL', 'CRASH_DATE_EST_I', 'LANE_CNT', 'NOT_RIGHT_OF_WAY_I', 
     'PHOTOS_TAKEN_I', 'STATEMENTS_TAKEN_I', 'DOORING_I', 'WORK_ZONE_I', 
     'WORK_ZONE_TYPE', 'WORKERS_PRESENT_I', 'INJURIES_FATAL', 'INJURIES_INCAPACITATING',
@@ -40,13 +42,13 @@ df.ffill(inplace=True)
 
 # Define categorical, binary, and numerical features
 categorical_features = [
-    'REPORT_TYPE', 'FIRST_CRASH_TYPE', 'DAMAGE', 'PRIM_CONTRIBUTORY_CAUSE', 
-    'TRAFFIC_CONTROL_DEVICE', 'DEVICE_CONDITION', 'WEATHER_CONDITION', 
+    'FIRST_CRASH_TYPE', 'PRIM_CONTRIBUTORY_CAUSE', 
+    'TRAFFIC_CONTROL_DEVICE', 'WEATHER_CONDITION', 
     'LIGHTING_CONDITION', 'TRAFFICWAY_TYPE', 'ALIGNMENT', 'ROADWAY_SURFACE_COND', 
     'ROAD_DEFECT', 'STREET_DIRECTION'
 ]
 binary_features = ['HIT_AND_RUN_I', 'INTERSECTION_RELATED_I']
-numerical_features = ['POSTED_SPEED_LIMIT', 'NUM_UNITS', 'CRASH_HOUR', 'CRASH_DAY', 'CRASH_MONTH']
+numerical_features = ['POSTED_SPEED_LIMIT','CRASH_HOUR', 'CRASH_DAY', 'CRASH_MONTH']
 
 # Standardize binary features to 0 and 1
 for col in binary_features:
@@ -80,19 +82,23 @@ df_encoded[numerical_features] = scaler.fit_transform(df_encoded[numerical_featu
 y = df_encoded['accident']
 X = df_encoded.drop(['accident', 'CRASH_RECORD_ID', 'LOCATION', 'CRASH_DATE'], axis=1)
 
+# Shorten feature names for visualization
+short_feature_names = {name: f'F{i}' for i, name in enumerate(X.columns)}
+X_short = X.rename(columns=short_feature_names)
+
 # Check for non-numeric columns in X
-non_numeric_cols = X.select_dtypes(exclude=[np.number]).columns
+non_numeric_cols = X_short.select_dtypes(exclude=[np.number]).columns
 if not non_numeric_cols.empty:
     print(f"Warning: Non-numeric columns found in X: {non_numeric_cols}")
 else:
     print("All columns in X are numeric.")
 
 # Ensure no missing values in the feature matrix
-X.fillna(X.mean(), inplace=True)
+X_short.fillna(X_short.mean(), inplace=True)
 
 # Balance the dataset using SMOTE
 smote = SMOTE(random_state=42)
-X_res, y_res = smote.fit_resample(X, y)
+X_res, y_res = smote.fit_resample(X_short, y)
 
 # Split the dataset into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size=0.2, random_state=42)
@@ -120,21 +126,24 @@ print(conf_matrix)
 feature_importance = decision_tree.feature_importances_
 important_features = pd.DataFrame({
     'Feature': X.columns,
+    'Short Feature': X_short.columns,
     'Importance': feature_importance
 }).sort_values(by='Importance', ascending=False)
 
 print("\nTop 10 Features by Importance:")
 print(important_features.head(10))
+top_10_features = important_features.head(10)
 
-plt.figure(figsize=(20, 15))
-plt.barh(important_features['Feature'], important_features['Importance'], color='skyblue')
+# Plot feature importance
+plt.figure(figsize=(10, 8))
+plt.barh(top_10_features['Short Feature'], top_10_features['Importance'], color='skyblue')
 plt.gca().invert_yaxis()
 plt.xlabel('Feature Importance')
 plt.ylabel('Features')
-plt.title('Top Features by Importance')
+plt.title('Top 10 Features by Importance')
 plt.show()
 
-# Plot decision tree
-plt.figure(figsize=(30, 10))
-plot_tree(decision_tree, filled=True, feature_names=X.columns, class_names=['No Accident', 'Accident'], fontsize=10)
+# Visualize the decision tree using matplotlib
+plt.figure(figsize=(40, 20))  # Increase figure size to reduce overlap
+plot_tree(decision_tree, filled=True, feature_names=X_short.columns, class_names=['No Accident', 'Accident'], fontsize=10, proportion=False, rounded=True, precision=2)
 plt.show()
