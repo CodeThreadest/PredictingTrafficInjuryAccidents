@@ -94,9 +94,6 @@ X_res, y_res = smote.fit_resample(X_short, y)
 # Split the dataset into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size=0.2, random_state=42)
 
-# Train a decision tree classifier
-decision_tree = DecisionTreeClassifier(random_state=42)
-decision_tree.fit(X_train, y_train)
 # Train the pruned decision tree with ccp_alpha
 ccp_alpha_fixed = 2e-06
 pruned_tree = DecisionTreeClassifier(random_state=42, ccp_alpha=ccp_alpha_fixed)
