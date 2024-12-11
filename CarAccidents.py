@@ -112,7 +112,7 @@ print(report_pruned)
 print("Confusion Matrix:")
 print(conf_matrix_pruned)
 
-# Extract feature importances with original feature names
+# Extract feature importances with feature names
 feature_importances = pruned_tree.feature_importances_
 importance_df = pd.DataFrame({
     'Feature': X.columns,  # Use original feature names here
@@ -126,7 +126,7 @@ top_20_features = importance_df.head(20)
 print("\nTop 20 Important Features:")
 print(top_20_features[['Feature', 'Importance']])
 
-# Use shortened names only for tree visualization
+#shortened names
 short_feature_names = {name: f'F{i}' for i, name in enumerate(X.columns)}
 short_feature_name_list = [short_feature_names[name] for name in X.columns]
 
@@ -136,14 +136,14 @@ plt.barh(top_20_features['Feature'], top_20_features['Importance'], align='cente
 plt.xlabel('Feature Importance', fontsize=14)
 plt.ylabel('Feature Name', fontsize=14)
 plt.title('Top 20 Important Features', fontsize=16)
-plt.gca().invert_yaxis()  # Invert y-axis to show the highest importance at the top
+plt.gca().invert_yaxis()  # Invert y-axis 
 plt.tight_layout()
 plt.show()
-# Plot the pruned decision tree using shortened names
+# Plot the pruned decision tree
 plt.figure(figsize=(40, 20))
 plot_tree(
     pruned_tree,
-    feature_names=short_feature_name_list,  # Use shortened names here
+    feature_names=short_feature_name_list, 
     class_names=['No Accident', 'Accident'],
     filled=True,
     proportion=True,
