@@ -10,7 +10,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import matplotlib.pyplot as plt
 
 # Load dataset
-df = pd.read_csv('Traffic_Crashes(1).csv')
+df = pd.read_csv('Traffic_Crashes.csv')
 
 os.environ["LOKY_MAX_CPU_COUNT"] = "4"
 
