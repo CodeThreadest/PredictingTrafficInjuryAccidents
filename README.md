@@ -11,7 +11,7 @@ To run this script, ensure that you have the following libaries downloaded:
 #matplotlib
 ####
 Step One: 
- Download the dataset from Chicago Traffic Crashes Data and save it as Traffic_Crashes(1).csv.
+ Download the dataset from Chicago Traffic Crashes Data and save it as Traffic_Crashes.csv. https://data.cityofchicago.org/Transportation/Traffic-Crashes-Crashes/85ca-t3if/about_data
 
 Step Two:
   ensure you download the requirements above.
