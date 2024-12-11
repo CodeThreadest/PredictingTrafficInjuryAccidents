@@ -7,9 +7,7 @@ from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-
 import matplotlib.pyplot as plt
-
 
 # Load dataset
 df = pd.read_csv('Traffic_Crashes(1).csv')
@@ -21,21 +19,14 @@ df['accident'] = df['INJURIES_TOTAL'].apply(lambda x: 1 if x > 2 else 0)
 
 # Drop irrelevant or high-missing columns
 columns_to_drop = [
-    'DAMAGE', 'REPORT_TYPE', 'DEVICE_CONDITION', 'NUM_UNITS', 'NUM_UNITS',
-    'INJURIES_TOTAL', 'CRASH_DATE_EST_I', 'LANE_CNT', 'NOT_RIGHT_OF_WAY_I', 
-    'PHOTOS_TAKEN_I', 'STATEMENTS_TAKEN_I', 'DOORING_I', 'WORK_ZONE_I', 
-    'WORK_ZONE_TYPE', 'WORKERS_PRESENT_I', 'INJURIES_FATAL', 'INJURIES_INCAPACITATING',
-    'INJURIES_NON_INCAPACITATING', 'INJURIES_REPORTED_NOT_EVIDENT',
-    'INJURIES_NO_INDICATION', 'INJURIES_UNKNOWN', 'MOST_SEVERE_INJURY', 'CRASH_TYPE'
+     'REPORT_TYPE', 'DEVICE_CONDITION', 'NUM_UNITS', 'NUM_UNITS','TRAFFIC_CONTROL_DEVICE',
+    'INJURIES_TOTAL', 'CRASH_DATE_EST_I', 'LANE_CNT', 'NOT_RIGHT_OF_WAY_I', 'CRASH_DATE','DAMAGE',
+    'PHOTOS_TAKEN_I', 'STATEMENTS_TAKEN_I', 'DOORING_I', 'WORK_ZONE_I', 'STREET_NO', 'LATITUDE',
+    'WORK_ZONE_TYPE', 'WORKERS_PRESENT_I', 'INJURIES_FATAL', 'INJURIES_INCAPACITATING', 'CRASH_MONTH',
+    'INJURIES_NON_INCAPACITATING', 'INJURIES_REPORTED_NOT_EVIDENT', 'BEAT_OF_OCCURRENCE',
+    'INJURIES_NO_INDICATION', 'INJURIES_UNKNOWN', 'MOST_SEVERE_INJURY', 'CRASH_TYPE', 'CRASH_HOUR', 'CRASH_DAY_OF_WEEK'
 ]
 df.drop(columns=columns_to_drop, inplace=True)
-
-# Convert 'CRASH_DATE' to datetime and extract date components
-df['CRASH_DATE'] = pd.to_datetime(df['CRASH_DATE'], format='%m/%d/%Y %I:%M:%S %p', errors='coerce')
-df['CRASH_YEAR'] = df['CRASH_DATE'].dt.year
-df['CRASH_MONTH'] = df['CRASH_DATE'].dt.month
-df['CRASH_DAY'] = df['CRASH_DATE'].dt.day
-df['CRASH_HOUR'] = df['CRASH_DATE'].dt.hour
 
 # Handle missing values with forward fill
 df.ffill(inplace=True)
@@ -43,12 +34,12 @@ df.ffill(inplace=True)
 # Define categorical, binary, and numerical features
 categorical_features = [
     'FIRST_CRASH_TYPE', 'PRIM_CONTRIBUTORY_CAUSE', 
-    'TRAFFIC_CONTROL_DEVICE', 'WEATHER_CONDITION', 
+     'WEATHER_CONDITION', 
     'LIGHTING_CONDITION', 'TRAFFICWAY_TYPE', 'ALIGNMENT', 'ROADWAY_SURFACE_COND', 
     'ROAD_DEFECT', 'STREET_DIRECTION'
 ]
 binary_features = ['HIT_AND_RUN_I', 'INTERSECTION_RELATED_I']
-numerical_features = ['POSTED_SPEED_LIMIT','CRASH_HOUR', 'CRASH_DAY', 'CRASH_MONTH']
+numerical_features = ['POSTED_SPEED_LIMIT']
 
 # Standardize binary features to 0 and 1
 for col in binary_features:
@@ -80,7 +71,7 @@ df_encoded[numerical_features] = scaler.fit_transform(df_encoded[numerical_featu
 
 # Define features (X) and target (y)
 y = df_encoded['accident']
-X = df_encoded.drop(['accident', 'CRASH_RECORD_ID', 'LOCATION', 'CRASH_DATE'], axis=1)
+X = df_encoded.drop(['accident', 'CRASH_RECORD_ID', 'LOCATION'], axis=1)
 
 # Shorten feature names for visualization
 short_feature_names = {name: f'F{i}' for i, name in enumerate(X.columns)}
@@ -104,46 +95,63 @@ X_res, y_res = smote.fit_resample(X_short, y)
 X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size=0.2, random_state=42)
 
 # Train a decision tree classifier
-decision_tree = DecisionTreeClassifier(max_depth=5, min_samples_split=10, min_samples_leaf=5, random_state=42)
+decision_tree = DecisionTreeClassifier(random_state=42)
 decision_tree.fit(X_train, y_train)
+# Train the pruned decision tree with ccp_alpha
+ccp_alpha_fixed = 2e-06
+pruned_tree = DecisionTreeClassifier(random_state=42, ccp_alpha=ccp_alpha_fixed)
+pruned_tree.fit(X_train, y_train)
 
-# Predict on the test set
-y_pred = decision_tree.predict(X_test)
+# Evaluate the pruned tree
+y_pred_pruned = pruned_tree.predict(X_test)
+accuracy_pruned = accuracy_score(y_test, y_pred_pruned)
+report_pruned = classification_report(y_test, y_pred_pruned)
+conf_matrix_pruned = confusion_matrix(y_test, y_pred_pruned)
 
-# Evaluate model performance
-accuracy = accuracy_score(y_test, y_pred)
-report = classification_report(y_test, y_pred)
-conf_matrix = confusion_matrix(y_test, y_pred)
-
-print("\nModel Evaluation Metrics:")
-print(f"Accuracy: {accuracy}")
+print("\nPruned Model Evaluation Metrics:")
+print(f"Accuracy: {accuracy_pruned}")
 print("Classification Report:")
-print(report)
+print(report_pruned)
 print("Confusion Matrix:")
-print(conf_matrix)
+print(conf_matrix_pruned)
 
-# Plot feature importance
-feature_importance = decision_tree.feature_importances_
-important_features = pd.DataFrame({
-    'Feature': X.columns,
-    'Short Feature': X_short.columns,
-    'Importance': feature_importance
+# Extract feature importances with original feature names
+feature_importances = pruned_tree.feature_importances_
+importance_df = pd.DataFrame({
+    'Feature': X.columns,  # Use original feature names here
+    'Importance': feature_importances
 }).sort_values(by='Importance', ascending=False)
 
-print("\nTop 10 Features by Importance:")
-print(important_features.head(10))
-top_10_features = important_features.head(10)
+# Get the top 20 features (original names)
+top_20_features = importance_df.head(20)
 
-# Plot feature importance
-plt.figure(figsize=(10, 8))
-plt.barh(top_10_features['Short Feature'], top_10_features['Importance'], color='skyblue')
-plt.gca().invert_yaxis()
-plt.xlabel('Feature Importance')
-plt.ylabel('Features')
-plt.title('Top 10 Features by Importance')
+# Print the top 20 important features
+print("\nTop 20 Important Features:")
+print(top_20_features[['Feature', 'Importance']])
+
+# Use shortened names only for tree visualization
+short_feature_names = {name: f'F{i}' for i, name in enumerate(X.columns)}
+short_feature_name_list = [short_feature_names[name] for name in X.columns]
+
+# Plot the top 20 important features using a horizontal bar plot
+plt.figure(figsize=(12, 8))
+plt.barh(top_20_features['Feature'], top_20_features['Importance'], align='center')
+plt.xlabel('Feature Importance', fontsize=14)
+plt.ylabel('Feature Name', fontsize=14)
+plt.title('Top 20 Important Features', fontsize=16)
+plt.gca().invert_yaxis()  # Invert y-axis to show the highest importance at the top
+plt.tight_layout()
 plt.show()
-
-# Visualize the decision tree using matplotlib
-plt.figure(figsize=(40, 20))  # Increase figure size to reduce overlap
-plot_tree(decision_tree, filled=True, feature_names=X_short.columns, class_names=['No Accident', 'Accident'], fontsize=10, proportion=False, rounded=True, precision=2)
+# Plot the pruned decision tree using shortened names
+plt.figure(figsize=(40, 20))
+plot_tree(
+    pruned_tree,
+    feature_names=short_feature_name_list,  # Use shortened names here
+    class_names=['No Accident', 'Accident'],
+    filled=True,
+    proportion=True,
+    rounded=True,
+    precision=2
+)
+plt.title('Pruned Decision Tree (Shortened Names)')
 plt.show()
